@@ -38,8 +38,10 @@ jobs:
         --device /dev/xpu0 --device /dev/xpu1 --device /dev/xpu2 --device /dev/xpu3
         --device /dev/xpu4 --device /dev/xpu5 --device /dev/xpu6 --device /dev/xpu7
       env:
-        http_proxy: http://agent.baidu.com:8891
-        https_proxy: http://agent.baidu.com:8891
+        # Per-machine proxy; set the repo/org Actions variables on hosts that
+        # need one, leave unset for hosts with direct access.
+        http_proxy: ${{ vars.KLXPU_HTTP_PROXY }}
+        https_proxy: ${{ vars.KLXPU_HTTPS_PROXY }}
 
     env:
       CUDA_VISIBLE_DEVICES: "0,1,2,3"
