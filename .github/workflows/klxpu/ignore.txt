@@ -1,0 +1,30 @@
+# KLXPU (KUNLUNXIN XPU) v1-suite ignore list.
+#
+# Whole files/dirs that hang or wholly fail. Hangs were confirmed above the
+# 600s XCCL watchdog (1000s cap); merely-slow files were moved out and now run.
+# One path per line, relative to the repo root; blank lines and # comments are
+# ignored by the workflow.
+
+# --- BKCL/XCCL single-communicator constraint: distributed runs deadlock
+#     (overlapping TP/EP collectives or unbatched P2P never progress) ---
+tests/unit/v1/autotp/test_autotp_custom_patterns.py
+tests/unit/v1/autotp/test_autotp_training.py
+tests/unit/v1/autotp/test_tp_plan_e2e.py
+tests/unit/v1/autotp/test_tp_plan_real_models.py
+tests/unit/v1/moe/test_autoep_autotp_sharded_attention.py
+tests/unit/v1/ops/muon/test_muon.py
+tests/unit/v1/ops/muon/test_per_head_muon_accelerator.py
+tests/unit/v1/zero/test_offload_states.py
+
+# --- torch.compile intercepted by torch_xmlir (runs eagerly); DeepCompile/
+#     Dynamo paths raise. Granular DeepCompile cases are deselected elsewhere ---
+tests/unit/v1/ops/muon/test_muon_scale_compile.py
+
+# --- Triton unsupported on klxpu: CUDA_ERROR_NOT_SUPPORTED ---
+tests/unit/v1/ops/triton_ops
+tests/unit/v1/moe/test_autoep_fused_parity.py
+tests/unit/v1/moe/test_autoep_permute_rows.py
+
+# --- GDS needs GPUDirect Storage, unavailable here (also ignored by upstream
+#     AWS v1 CI) ---
+tests/unit/v1/nvme/test_gds.py
