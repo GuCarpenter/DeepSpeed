@@ -37,6 +37,11 @@ jobs:
         --device /dev/xpuctrl
         --device /dev/xpu0 --device /dev/xpu1 --device /dev/xpu2 --device /dev/xpu3
         --device /dev/xpu4 --device /dev/xpu5 --device /dev/xpu6 --device /dev/xpu7
+      volumes:
+        # Route all test scratch (TMPDIR below) onto a 512-byte-sector disk. The
+        # async_io op assumes 512-byte O_DIRECT alignment and silently fails on
+        # 4Kn (4096-sector) storage. Per-machine host path via Actions variable.
+        - ${{ vars.KLXPU_AIO_SCRATCH || '/tmp/klx_aio_scratch' }}:/aio_scratch
       env:
         # Per-machine proxy; set the repo/org Actions variables on hosts that
         # need one, leave unset for hosts with direct access.
@@ -45,9 +50,19 @@ jobs:
 
     env:
       CUDA_VISIBLE_DEVICES: "0,1,2,3"
+      # Put all pytest/tempfile scratch on the 512-sector mount above (volumes),
+      # so async_io's O_DIRECT I/O works regardless of the host disk sector size.
+      TMPDIR: /aio_scratch
       # Cache Hugging Face downloads (transformers configs/tokenizers/models) in
       # a known writable path; ephemeral since the container is recreated.
       HF_HOME: /tmp/hf_home
+      # Per-machine Hugging Face mirror; set the Actions variable on hosts that
+      # cannot reach huggingface.co, leave unset for hosts with direct access.
+      HF_ENDPOINT: ${{ vars.KLXPU_HF_ENDPOINT }}
+      # Force plain-HTTPS LFS instead of the Xet backend, whose CDN
+      # (cas-bridge.xethub.hf.co) is unreachable behind a mirror and otherwise
+      # stalls weight downloads until the test times out.
+      HF_HUB_DISABLE_XET: "1"
 
     steps:
       - uses: actions/checkout@v4
