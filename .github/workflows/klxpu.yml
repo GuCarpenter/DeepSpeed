@@ -41,6 +41,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Persistent self-hosted checkout: reuse the on-disk repo so each run only
+          # does a small incremental fetch instead of re-cloning over a slow github link.
+          clean: false
 
       - name: Resolve conda env
         shell: bash
