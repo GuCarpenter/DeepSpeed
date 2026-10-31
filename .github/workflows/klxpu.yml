@@ -1,6 +1,8 @@
 name: klxpu
 
 on:
+  push:
+    branches: [ci/klxpu-runner]
   workflow_dispatch:
   schedule:
     - cron: "0 0 * * *"
@@ -31,7 +33,7 @@ jobs:
         https_proxy: ${{ vars.KLXPU_HTTPS_PROXY }}
 
     env:
-      CUDA_VISIBLE_DEVICES: "0,1,2,3"
+      CUDA_VISIBLE_DEVICES: ${{ vars.KLXPU_CUDA_VISIBLE_DEVICES || '0,1,2,3' }}
       TMPDIR: /aio_scratch
       HF_HOME: /tmp/hf_home
       HF_ENDPOINT: ${{ vars.KLXPU_HF_ENDPOINT }}
