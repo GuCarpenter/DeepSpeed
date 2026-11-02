@@ -25,10 +25,5 @@ tests/unit/v1/sequence_parallelism/test_ulysses.py
 #     Dynamo paths raise. Granular DeepCompile cases are deselected elsewhere ---
 tests/unit/v1/ops/muon/test_muon_scale_compile.py
 
-# --- Triton unsupported on klxpu: CUDA_ERROR_NOT_SUPPORTED ---
-tests/unit/v1/ops/triton_ops
-tests/unit/v1/moe/test_autoep_fused_parity.py
-tests/unit/v1/moe/test_autoep_permute_rows.py
-
 # --- GDS needs GPUDirect Storage, unavailable here ---
 tests/unit/v1/nvme/test_gds.py

@@ -40,11 +40,25 @@ jobs:
       HF_HUB_DISABLE_XET: "1"
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          # Persistent self-hosted checkout: reuse the on-disk repo so each run only
-          # does a small incremental fetch instead of re-cloning over a slow github link.
-          clean: false
+      # This runner's link to github.com stalls on bulk git transfers, so actions/checkout
+      # hangs in `git fetch`. The workspace keeps a full clone seeded out-of-band, so take
+      # the commit from there and only reach github when the commit is not present yet.
+      - name: Checkout (pre-seeded workspace, retrying fetch)
+        shell: bash
+        run: |
+          git config --global --add safe.directory '*'
+          cd "$GITHUB_WORKSPACE"
+          if git cat-file -e "${GITHUB_SHA}^{commit}" 2>/dev/null; then
+            echo "commit already in the seeded workspace, no fetch needed"
+          else
+            for attempt in $(seq 1 30); do
+              echo "fetch attempt ${attempt}"
+              timeout 30 git fetch --no-tags --depth=1 origin "$GITHUB_SHA" && break
+              sleep 5
+            done
+          fi
+          git checkout -f "$GITHUB_SHA"
+          git log --oneline -1
 
       - name: Resolve conda env
         shell: bash
@@ -74,6 +88,18 @@ jobs:
           pip uninstall -y deepspeed || true
           pip install -e . --no-deps --no-build-isolation
           ds_report
+
+      - name: Remove Triton
+        shell: bash
+        run: |
+          source /root/miniconda/etc/profile.d/conda.sh
+          conda activate "$CONDA_ENV"
+          # klxpu reports is_triton_supported() == False: Triton kernels launch and then fail
+          # with CUDA_ERROR_NOT_SUPPORTED. With Triton absent, DeepSpeed's Triton ops take
+          # their eager fallbacks and the Triton-only tests skip themselves, so the suite
+          # covers 271 more tests than it does with Triton installed and suppressed.
+          pip uninstall -y triton || true
+          python -c "from deepspeed.ops.triton_ops import is_triton_available; print('is_triton_available:', is_triton_available())"
 
       - name: Check accelerator is klxpu
         shell: bash
