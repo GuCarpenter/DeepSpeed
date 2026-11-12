@@ -1,6 +1,8 @@
 name: klxpu
 
 on:
+  push:
+    branches: [ci/klxpu-runner]
   workflow_dispatch:
   schedule:
     - cron: "0 0 * * *"
@@ -18,7 +20,7 @@ jobs:
     runs-on: [self-hosted, klxpu]
     timeout-minutes: 150
     container:
-      image: hub.kunlunxin.com/public/klxpu-deepspeed:latest
+      image: iregistry.baidu-int.com/xpu/klxpu-deepspeed:latest
       options: >-
         --privileged --ipc=host --cap-add=ALL
         --device /dev/xpuctrl
@@ -31,7 +33,7 @@ jobs:
         https_proxy: ${{ vars.KLXPU_HTTPS_PROXY }}
 
     env:
-      CUDA_VISIBLE_DEVICES: "0,1,2,3"
+      CUDA_VISIBLE_DEVICES: ${{ vars.KLXPU_CUDA_VISIBLE_DEVICES || '0,1,2,3' }}
       TMPDIR: /aio_scratch
       HF_HOME: /tmp/hf_home
       HF_ENDPOINT: ${{ vars.KLXPU_HF_ENDPOINT }}
@@ -57,6 +59,7 @@ jobs:
           xpu-smi || true
           python --version
           python -c "import torch, torch_xmlir; print('torch:', torch.__version__)"
+          python -m torch_xmlir --doctor
           python -c "import torch; print('device_count:', torch.cuda.device_count())"
 
       - name: Install DeepSpeed (working tree)
@@ -64,8 +67,15 @@ jobs:
         run: |
           source /root/miniconda/etc/profile.d/conda.sh
           conda activate "$CONDA_ENV"
-          env -u http_proxy -u https_proxy pip install -U transformers
-          pip uninstall -y deepspeed || true
+          # Install through the proxy from pypi.org: the image pins the Tsinghua mirror, which
+          # this host reaches only slowly, and its direct egress to the China mirrors is blocked.
+          pip install -U transformers -i https://pypi.org/simple
+          # klxpu's is_triton_supported() is False, so Triton kernels fail at launch; removing
+          # Triton makes the ops fall back to eager and lets the Triton-only tests self-skip.
+          pip uninstall -y deepspeed triton || true
+          if pip show xdeepspeed-ext >/dev/null 2>&1; then
+            pip uninstall -y xdeepspeed-ext
+          fi
           pip install -e . --no-deps --no-build-isolation
           ds_report
 
